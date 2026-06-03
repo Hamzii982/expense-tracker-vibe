@@ -6,3 +6,6 @@ __pycache__/
 .env
 .DS_Store
 .claude/plans/
+# Mockup / reference screenshots dropped at repo root
+Screenshot *.png
+screenshots/
