@@ -10,26 +10,33 @@
 
 <section class="hero">
     <div class="hero-frame">
-        <div class="hero-text">
-            <span class="hero-kicker">Track Spendly</span>
+        <div class="hero-inner">
+            <div class="hero-alert" role="status">
+                <span class="hero-alert-dot" aria-hidden="true"></span>
+                Free to use · No credit card needed
+            </div>
+
             <h1 class="hero-title">
-                Know where your<br>
-                <em>money goes.</em>
+                Track every penny.<br>
+                <em>Know where it goes.</em>
             </h1>
+
             <p class="hero-subtitle">
                 Log expenses, understand your spending patterns,
                 and take control of your financial life —
                 one transaction at a time.
             </p>
+
             <div class="hero-actions">
                 <a href="{{ url_for('register') }}" class="btn-primary-arrow">
-                    Start tracking <span class="arrow">→</span>
+                    Create new account
                 </a>
                 <button type="button" class="btn-ghost" id="how-it-works-btn">
-                    <span class="play-icon">▶</span> See how it works
+                    See how it works
                 </button>
             </div>
         </div>
+
         <div class="hero-visual">
             <div class="mock-card">
                 <div class="mock-card-header">
