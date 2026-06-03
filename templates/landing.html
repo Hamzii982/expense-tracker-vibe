@@ -25,6 +25,9 @@
                 <a href="{{ url_for('register') }}" class="btn-primary-arrow">
                     Start tracking <span class="arrow">→</span>
                 </a>
+                <button type="button" class="btn-ghost" id="how-it-works-btn">
+                    <span class="play-icon">▶</span> See how it works
+                </button>
             </div>
         </div>
         <div class="hero-visual">
@@ -96,4 +99,25 @@
     </div>
 </section>
 
+<div class="video-modal" id="video-modal" hidden aria-hidden="true">
+    <div class="video-modal-backdrop" data-close-modal></div>
+    <div class="video-modal-dialog" role="dialog" aria-modal="true" aria-label="How Spendly works">
+        <button type="button" class="video-modal-close" data-close-modal aria-label="Close video">×</button>
+        <div class="video-modal-frame">
+            <iframe
+                id="video-modal-iframe"
+                src=""
+                title="How Spendly works"
+                frameborder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+            ></iframe>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/landing.js') }}"></script>
 {% endblock %}
