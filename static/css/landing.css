@@ -4,6 +4,9 @@
 
 .hero {
     padding: 4rem 2rem 5rem;
+    display: block;
+    max-width: 100%;
+    margin: 0;
 }
 
 .hero-frame {
@@ -119,6 +122,7 @@
     .hero { padding: 3rem 1.25rem 4rem; }
     .hero-title { font-size: clamp(2.1rem, 7vw, 2.9rem); }
     .hero-subtitle { font-size: 1rem; }
+    .hero-visual { display: flex; } /* override global .hero-visual { display: none } */
 }
 
 @media (max-width: 600px) {
