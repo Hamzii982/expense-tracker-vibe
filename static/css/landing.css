@@ -3,27 +3,22 @@
 /* ------------------------------------------------------------------ */
 
 .hero {
-    padding: 3rem 1.25rem 4rem;
+    padding: 4rem 1.5rem 5rem;
 }
 
 .hero-frame {
-    max-width: 920px;
+    max-width: 1200px;
     margin: 0 auto;
-    background: var(--paper-card);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    padding: 3rem 2.5rem 3.5rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
-    gap: 2.25rem;
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.02);
+    gap: 2.5rem;
 }
 
 .hero-inner {
     width: 100%;
-    max-width: 640px;
+    max-width: 760px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -56,11 +51,11 @@
 
 .hero-title {
     font-family: var(--font-display);
-    font-size: clamp(2.25rem, 5.5vw, 3.6rem);
-    line-height: 1.08;
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    line-height: 1.05;
     letter-spacing: -0.02em;
     color: var(--ink);
-    margin: 0 0 1.1rem;
+    margin: 0 0 1.25rem;
 }
 
 .hero-title em {
@@ -69,11 +64,11 @@
 }
 
 .hero-subtitle {
-    font-size: 1.02rem;
+    font-size: 1.08rem;
     color: var(--ink-muted);
     line-height: 1.7;
-    max-width: 520px;
-    margin: 0 0 1.85rem;
+    max-width: 620px;
+    margin: 0 0 2rem;
 }
 
 .hero-actions {
@@ -90,10 +85,10 @@
     justify-content: center;
     background: var(--ink);
     color: var(--paper);
-    padding: 0.75rem 1.5rem;
+    padding: 0.8rem 1.7rem;
     border-radius: 999px;
     font-family: var(--font-body);
-    font-size: 0.92rem;
+    font-size: 0.95rem;
     font-weight: 500;
     text-decoration: none;
     transition: background 0.2s, transform 0.2s;
@@ -112,18 +107,17 @@
     width: 100%;
     display: flex;
     justify-content: center;
-    margin-top: 0.5rem;
+    margin-top: 1rem;
 }
 
 @media (max-width: 900px) {
-    .hero-frame { padding: 2.5rem 1.5rem 3rem; gap: 1.75rem; }
-    .hero-title { font-size: clamp(2rem, 7vw, 2.75rem); }
-    .hero-subtitle { font-size: 0.98rem; }
+    .hero { padding: 3rem 1.25rem 4rem; }
+    .hero-title { font-size: clamp(2.1rem, 7vw, 2.9rem); }
+    .hero-subtitle { font-size: 1rem; }
 }
 
 @media (max-width: 600px) {
-    .hero { padding: 2rem 0.75rem 3rem; }
-    .hero-frame { padding: 2rem 1.25rem 2.5rem; border-radius: 18px; }
+    .hero { padding: 2rem 1rem 3rem; }
     .hero-alert { font-size: 0.72rem; padding: 0.35rem 0.8rem; }
     .hero-actions { width: 100%; flex-direction: column; }
     .btn-primary-arrow,
