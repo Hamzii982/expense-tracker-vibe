@@ -28,6 +28,9 @@ def landing():
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    if session.get("user_id"):
+        return redirect(url_for("profile"))
+
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
         email = (request.form.get("email") or "").strip()
@@ -80,10 +83,32 @@ def register():
     return render_template("register.html")
 
 
-@app.route("/login")
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    return render_template("login.html")
+    if session.get("user_id"):
+        return redirect(url_for("profile"))
 
+    if request.method == "POST":
+        email = (request.form.get("email") or "").strip()
+        password = (request.form.get("password") or "").strip()
+
+        if not email or not password:
+            return render_template("login.html", error="all fields are required"), 400
+
+        conn = get_db()
+        user = conn.execute(
+            "SELECT * FROM users WHERE lower(email) = lower(?)",
+            (email,),
+        ).fetchone()
+        conn.close()
+
+        if user is None or not check_password_hash(user["password_hash"], password):
+            return render_template("login.html", error="invalid email or password"), 400
+
+        session["user_id"] = user["id"]
+        return redirect(url_for("profile"))
+
+    return render_template("login.html")
 
 @app.route("/terms")
 def terms():
@@ -101,8 +126,8 @@ def privacy():
 
 @app.route("/logout")
 def logout():
-    return "Logout — coming in Step 3"
-
+    session.clear()
+    return redirect(url_for("landing"))
 
 @app.route("/profile")
 def profile():
