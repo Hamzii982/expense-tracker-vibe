@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}Profile — Spendly{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/profile.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="profile-section">
+
+    {# ---- User info card ---- #}
+    <div class="profile-user-card">
+        <div class="profile-avatar" aria-hidden="true">{{ user.initials }}</div>
+        <div class="profile-user-meta">
+            <h1 class="profile-user-name">{{ user.name }}</h1>
+            <p class="profile-user-email">{{ user.email }}</p>
+            <p class="profile-user-since">Member since {{ user.joined }}</p>
+        </div>
+        <div class="profile-user-actions">
+            <button type="button" class="btn-ghost">Edit profile</button>
+            <button type="button" class="btn-primary">Add expense</button>
+        </div>
+    </div>
+
+    {# ---- Summary stats row ---- #}
+    <div class="profile-stats">
+        <div class="profile-stat">
+            <p class="profile-stat-label">Total spent</p>
+            <p class="profile-stat-value">${{ "%.2f"|format(stats.total_spent) }}</p>
+        </div>
+        <div class="profile-stat">
+            <p class="profile-stat-label">Transactions</p>
+            <p class="profile-stat-value">{{ stats.txn_count }}</p>
+        </div>
+        <div class="profile-stat">
+            <p class="profile-stat-label">Top category</p>
+            <p class="profile-stat-value">{{ stats.top_category }}</p>
+        </div>
+        <div class="profile-stat">
+            <p class="profile-stat-label">Avg / month</p>
+            <p class="profile-stat-value">${{ "%.2f"|format(stats.avg_monthly) }}</p>
+        </div>
+    </div>
+
+    {# ---- Two-column grid ---- #}
+    <div class="profile-grid">
+
+        <div class="profile-card">
+            <div class="profile-card-header">
+                <h2 class="profile-card-title">Recent transactions</h2>
+                <span class="profile-card-link">View all</span>
+            </div>
+            <table class="profile-tx-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th class="col-amount">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for tx in transactions %}
+                    <tr>
+                        <td>{{ tx.date }}</td>
+                        <td>{{ tx.description }}</td>
+                        <td><span class="cat-badge cat-badge--{{ tx.category|lower }}">{{ tx.category }}</span></td>
+                        <td class="col-amount">${{ "%.2f"|format(tx.amount) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="profile-card">
+            <div class="profile-card-header">
+                <h2 class="profile-card-title">By category</h2>
+            </div>
+            <div class="profile-cat-list">
+                {% for cat in category_breakdown %}
+                <div class="profile-cat-row" style="--pct: {{ (cat.total / category_max * 100)|round(1) }}">
+                    <div class="profile-cat-label">{{ cat.name }}</div>
+                    <div class="profile-cat-bar">
+                        <div class="profile-cat-bar-fill cat-bar--{{ cat.name|lower }}"></div>
+                    </div>
+                    <div class="profile-cat-amt">${{ "%.2f"|format(cat.total) }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+
+</section>
+{% endblock %}

@@ -78,6 +78,7 @@ def register():
         conn.close()
 
         session["user_id"] = user_id
+        session["user_name"] = name
         return redirect(url_for("profile"))
 
     return render_template("register.html")
@@ -106,6 +107,7 @@ def login():
             return render_template("login.html", error="invalid email or password"), 400
 
         session["user_id"] = user["id"]
+        session["user_name"] = user["name"]
         return redirect(url_for("profile"))
 
     return render_template("login.html")
@@ -131,7 +133,53 @@ def logout():
 
 @app.route("/profile")
 def profile():
-    return "Profile page — coming in Step 4"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    user = {
+        "name": "Demo User",
+        "email": "demo@spendly.com",
+        "initials": "DU",
+        "joined": "May 2026",
+    }
+
+    stats = {
+        "total_spent": 302.19,
+        "txn_count": 8,
+        "top_category": "Bills",
+        "avg_monthly": 302.19,
+    }
+
+    transactions = [
+        {"date": "2026-06-05", "description": "Pharmacy",          "category": "Health",        "amount": 35.00},
+        {"date": "2026-06-04", "description": "Weekly groceries",  "category": "Food",          "amount": 45.20},
+        {"date": "2026-06-04", "description": "New shoes",         "category": "Shopping",      "amount": 60.00},
+        {"date": "2026-06-03", "description": "Electricity bill",  "category": "Bills",         "amount": 120.00},
+        {"date": "2026-06-02", "description": "Lunch at cafe",     "category": "Food",          "amount": 12.50},
+        {"date": "2026-06-02", "description": "Movie ticket",      "category": "Entertainment", "amount": 15.99},
+        {"date": "2026-06-01", "description": "Bus pass",          "category": "Transport",     "amount": 8.00},
+        {"date": "2026-06-01", "description": "Misc",              "category": "Other",         "amount": 5.50},
+    ]
+
+    category_breakdown = [
+        {"name": "Food",          "total": 57.70},
+        {"name": "Transport",     "total": 8.00},
+        {"name": "Bills",         "total": 120.00},
+        {"name": "Health",        "total": 35.00},
+        {"name": "Entertainment", "total": 15.99},
+        {"name": "Shopping",      "total": 60.00},
+        {"name": "Other",         "total": 5.50},
+    ]
+    category_max = max(c["total"] for c in category_breakdown)
+
+    return render_template(
+        "profile.html",
+        user=user,
+        stats=stats,
+        transactions=transactions,
+        category_breakdown=category_breakdown,
+        category_max=category_max,
+    )
 
 
 @app.route("/expenses/add")
