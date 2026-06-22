@@ -1,5 +1,6 @@
 import os
 import sqlite3
+from datetime import datetime
 
 from flask import Flask, render_template, request, redirect, url_for, session
 
@@ -136,41 +137,19 @@ def profile():
     if not session.get("user_id"):
         return redirect(url_for("login"))
 
-    user = {
-        "name": "Demo User",
-        "email": "demo@spendly.com",
-        "initials": "DU",
-        "joined": "May 2026",
-    }
+    conn = get_db()
 
-    stats = {
-        "total_spent": 302.19,
-        "txn_count": 8,
-        "top_category": "Bills",
-        "avg_monthly": 302.19,
-    }
+    user = _get_user(conn, session["user_id"])
+    if user is None:
+        conn.close()
+        session.clear()
+        return redirect(url_for("login"))
 
-    transactions = [
-        {"date": "2026-06-05", "description": "Pharmacy",          "category": "Health",        "amount": 35.00},
-        {"date": "2026-06-04", "description": "Weekly groceries",  "category": "Food",          "amount": 45.20},
-        {"date": "2026-06-04", "description": "New shoes",         "category": "Shopping",      "amount": 60.00},
-        {"date": "2026-06-03", "description": "Electricity bill",  "category": "Bills",         "amount": 120.00},
-        {"date": "2026-06-02", "description": "Lunch at cafe",     "category": "Food",          "amount": 12.50},
-        {"date": "2026-06-02", "description": "Movie ticket",      "category": "Entertainment", "amount": 15.99},
-        {"date": "2026-06-01", "description": "Bus pass",          "category": "Transport",     "amount": 8.00},
-        {"date": "2026-06-01", "description": "Misc",              "category": "Other",         "amount": 5.50},
-    ]
+    stats = _get_stats(conn, session["user_id"])
+    transactions = _get_recent_transactions(conn, session["user_id"])
+    category_breakdown, category_max = _get_category_breakdown(conn, session["user_id"])
 
-    category_breakdown = [
-        {"name": "Food",          "total": 57.70},
-        {"name": "Transport",     "total": 8.00},
-        {"name": "Bills",         "total": 120.00},
-        {"name": "Health",        "total": 35.00},
-        {"name": "Entertainment", "total": 15.99},
-        {"name": "Shopping",      "total": 60.00},
-        {"name": "Other",         "total": 5.50},
-    ]
-    category_max = max(c["total"] for c in category_breakdown)
+    conn.close()
 
     return render_template(
         "profile.html",
@@ -180,6 +159,81 @@ def profile():
         category_breakdown=category_breakdown,
         category_max=category_max,
     )
+
+
+# ------------------------------------------------------------------ #
+# Profile view helpers                                                #
+# ------------------------------------------------------------------ #
+
+def _get_user(conn, user_id):
+    row = conn.execute(
+        "SELECT name, email, created_at FROM users WHERE id = ?",
+        (user_id,),
+    ).fetchone()
+    if row is None:
+        return None
+    parts = row["name"].split()
+    initials = "".join(p[0] for p in parts[:2]).upper() or "?"
+    joined = datetime.strptime(row["created_at"], "%Y-%m-%d %H:%M:%S").strftime("%B %Y")
+    return {
+        "name": row["name"],
+        "email": row["email"],
+        "initials": initials,
+        "joined": joined,
+    }
+
+
+def _get_stats(conn, user_id):
+    total_spent = conn.execute(
+        "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()[0]
+
+    txn_count = conn.execute(
+        "SELECT COUNT(*) FROM expenses WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()[0]
+
+    top_row = conn.execute(
+        "SELECT category FROM expenses WHERE user_id = ? "
+        "GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
+        (user_id,),
+    ).fetchone()
+    top_category = top_row["category"] if top_row is not None else "—"
+
+    month_count = conn.execute(
+        "SELECT COUNT(DISTINCT substr(date, 1, 7)) FROM expenses WHERE user_id = ?",
+        (user_id,),
+    ).fetchone()[0]
+    avg_monthly = round(total_spent / month_count, 2) if month_count else 0.0
+
+    return {
+        "total_spent": total_spent,
+        "txn_count": txn_count,
+        "top_category": top_category,
+        "avg_monthly": avg_monthly,
+    }
+
+
+def _get_recent_transactions(conn, user_id, limit=8):
+    rows = conn.execute(
+        "SELECT date, description, category, amount FROM expenses "
+        "WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT ?",
+        (user_id, limit),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def _get_category_breakdown(conn, user_id):
+    rows = conn.execute(
+        "SELECT category AS name, SUM(amount) AS total "
+        "FROM expenses WHERE user_id = ? "
+        "GROUP BY category ORDER BY total DESC",
+        (user_id,),
+    ).fetchall()
+    breakdown = [dict(row) for row in rows]
+    category_max = max((c["total"] for c in breakdown), default=0)
+    return breakdown, category_max
 
 
 @app.route("/expenses/add")

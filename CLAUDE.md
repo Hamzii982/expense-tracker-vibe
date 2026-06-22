@@ -31,6 +31,7 @@ The dev server runs on **port 5001** (not the Flask default 5000) and is started
 **`database/`** — SQLite layer. `db.py` is currently empty other than a comment block describing the three functions students must implement: `get_db()` (returns a SQLite connection with `row_factory` and foreign keys enabled), `init_db()` (creates tables via `CREATE TABLE IF NOT EXISTS`), `seed_db()` (development sample data). The DB file (`expense_tracker.db`) is gitignored.
 
 **`templates/`** — Jinja2 templates, all extend `base.html`. The base template owns the navbar, footer, and Google Fonts link. Templates that need page-specific styles or scripts use the `head` and `scripts` blocks:
+
 ```html
 {% block head %}<link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">{% endblock %}
 ...
@@ -40,6 +41,7 @@ The dev server runs on **port 5001** (not the Flask default 5000) and is started
 **`static/css/style.css`** — Global stylesheet. Defines CSS custom properties on `:root` (colors, fonts, `--max-width: 1200px`), the reset, navbar, footer, `.hero` (originally a 2-col grid — see "Landing page override" below), `.features`, `.cta-section`, `.legal-section` (for terms/privacy), and the `.mock-card` used on the landing page. **Do not modify global selectors** when adding per-page styles — use a per-page override file instead, or the cascade order will surprise you.
 
 **`static/css/landing.css`** — Per-page override loaded *after* `style.css` via the `head` block. It neutralises several global rules that were designed for an earlier hero layout:
+
 - `.hero { display: block; max-width: 100%; margin: 0; }` — kills the global `display: grid; grid-template-columns: 1fr 1fr;` and the 1200px cap
 - Inside `@media (max-width: 900px)`, `.hero-visual { display: flex; }` re-shows the mock card (the global rule hides it on tablet/mobile)
 
@@ -62,5 +64,3 @@ Commit messages are scoped and lowercase: `landing: <thing>`, `chore: <thing>`, 
 - The `Screenshot *.png` at repo root is a reference mockup for the landing page redesign, gitignored. Don't commit similar reference images — add them to `.gitignore` (`screenshots/`) instead.
 - The Flask dev server is started from the repo root as `python app.py`. The import path relies on `app.py` being on `PYTHONPATH` (which is true when run from the repo root inside the venv).
 - `database/db.py` is intentionally a stub with comments describing what students will write. Do not fill it in as part of unrelated work.
-</content>
-</invoke>
