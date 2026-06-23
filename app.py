@@ -1,6 +1,6 @@
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, date, timedelta
 
 from flask import Flask, render_template, request, redirect, url_for, session
 
@@ -137,6 +137,9 @@ def profile():
     if not session.get("user_id"):
         return redirect(url_for("login"))
 
+    flt = _resolve_date_range(request.args)
+    date_from, date_to = flt["date_from"], flt["date_to"]
+
     conn = get_db()
 
     user = _get_user(conn, session["user_id"])
@@ -145,9 +148,15 @@ def profile():
         session.clear()
         return redirect(url_for("login"))
 
-    stats = _get_stats(conn, session["user_id"])
-    transactions = _get_recent_transactions(conn, session["user_id"])
-    category_breakdown, category_max = _get_category_breakdown(conn, session["user_id"])
+    stats = _get_stats(
+        conn, session["user_id"], date_from=date_from, date_to=date_to
+    )
+    transactions = _get_recent_transactions(
+        conn, session["user_id"], date_from=date_from, date_to=date_to
+    )
+    category_breakdown, category_max = _get_category_breakdown(
+        conn, session["user_id"], date_from=date_from, date_to=date_to
+    )
 
     conn.close()
 
@@ -158,12 +167,184 @@ def profile():
         transactions=transactions,
         category_breakdown=category_breakdown,
         category_max=category_max,
+        filter_label=flt["filter_label"],
+        active_period=flt["active_period"],
+        filter_from=flt["from_raw"],
+        filter_to=flt["to_raw"],
     )
 
 
 # ------------------------------------------------------------------ #
 # Profile view helpers                                                #
 # ------------------------------------------------------------------ #
+
+# Preset periods accepted on the /profile query string. Anything else
+# in `period` falls back to "all" silently (per spec Definition of done).
+_PERIOD_KEYS = {
+    "all",
+    "this_month",
+    "last_month",
+    "last_3_months",
+    "last_6_months",
+    "this_year",
+}
+
+
+def _resolve_date_range(args):
+    """Parse /profile's query string into a concrete date range.
+
+    Returns a dict with:
+        date_from, date_to : date | None   — bounds passed to the DB helpers
+        active_period      : str           — which preset is highlighted
+        filter_label       : str           — "Showing: <label>" copy
+        from_raw, to_raw   : str | None    — for echoing into the date inputs
+    """
+    period = (args.get("period") or "all").strip()
+    if period not in _PERIOD_KEYS:
+        period = "all"
+
+    from_raw = (args.get("from") or "").strip()
+    to_raw = (args.get("to") or "").strip()
+
+    from_d = _parse_iso(from_raw)
+    to_d = _parse_iso(to_raw)
+
+    # An explicit custom range beats the period preset.
+    if from_d is not None or to_d is not None:
+        if from_d is not None and to_d is not None and from_d > to_d:
+            # Inverted range — spec: empty results, "No results" label.
+            # Pass the inverted bounds through to the helpers; SQLite's
+            # `WHERE date >= '2026-12-01' AND date <= '2026-01-01'` is
+            # guaranteed to match zero rows.
+            return {
+                "date_from": from_d,
+                "date_to": to_d,
+                "active_period": "custom",
+                "filter_label": "No results",
+                "from_raw": from_raw,
+                "to_raw": to_raw,
+            }
+        return {
+            "date_from": from_d,
+            "date_to": to_d,
+            "active_period": "custom",
+            "filter_label": _format_custom_label(from_d, to_d),
+            "from_raw": from_raw,
+            "to_raw": to_raw,
+        }
+
+    today = date.today()
+    first_of_month = today.replace(day=1)
+
+    if period == "all":
+        return {
+            "date_from": None,
+            "date_to": None,
+            "active_period": "all",
+            "filter_label": "All time",
+            "from_raw": None,
+            "to_raw": None,
+        }
+
+    if period == "this_month":
+        return {
+            "date_from": first_of_month,
+            "date_to": today,
+            "active_period": "this_month",
+            "filter_label": today.strftime("%B %Y"),
+            "from_raw": None,
+            "to_raw": None,
+        }
+
+    if period == "last_month":
+        last_day_of_prev = first_of_month - timedelta(days=1)
+        first_of_prev = last_day_of_prev.replace(day=1)
+        return {
+            "date_from": first_of_prev,
+            "date_to": last_day_of_prev,
+            "active_period": "last_month",
+            "filter_label": last_day_of_prev.strftime("%B %Y"),
+            "from_raw": None,
+            "to_raw": None,
+        }
+
+    if period in ("last_3_months", "last_6_months"):
+        n = 3 if period == "last_3_months" else 6
+        # Start from the last day of the previous month, then walk back
+        # (n - 2) more times — each step lands on the last day of the
+        # month-before. From there, rewind to the first of that month.
+        # For n=3 that means April 1 (current + 2 previous full months);
+        # for n=6 it means January 1 (current + 5 previous full months).
+        d = first_of_month - timedelta(days=1)
+        for _ in range(n - 2):
+            d = d.replace(day=1) - timedelta(days=1)
+        range_from = d.replace(day=1)
+        return {
+            "date_from": range_from,
+            "date_to": today,
+            "active_period": period,
+            "filter_label": f"Last {n} months",
+            "from_raw": None,
+            "to_raw": None,
+        }
+
+    if period == "this_year":
+        return {
+            "date_from": today.replace(month=1, day=1),
+            "date_to": today,
+            "active_period": "this_year",
+            "filter_label": str(today.year),
+            "from_raw": None,
+            "to_raw": None,
+        }
+
+
+def _parse_iso(value):
+    """Return date.fromisoformat(value) or None on any failure."""
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _format_custom_label(from_d, to_d):
+    """Render a human label for an explicit from/to range."""
+    if from_d is not None and to_d is not None:
+        if from_d.year == to_d.year:
+            return f"{_short(from_d)} – {_short(to_d, with_year=True)}"
+        return f"{_short(from_d, with_year=True)} – {_short(to_d, with_year=True)}"
+    if from_d is not None:
+        return f"From {_short(from_d, with_year=True)}"
+    if to_d is not None:
+        return f"Up to {_short(to_d, with_year=True)}"
+    return "All time"
+
+
+def _short(d, *, with_year=False):
+    """`Jun 22` / `Jun 22, 2026` without a leading zero on the day."""
+    suffix = f", {d.year}" if with_year else ""
+    return f"{d.strftime('%b')} {d.day}{suffix}"
+
+
+def _date_where(date_from, date_to):
+    """Build a (clause_fragment, params) pair for a date range filter.
+
+    Returns ("", []) when no bounds are set so the "all time" path stays
+    byte-identical to the pre-filter SQL.
+    """
+    clauses, params = [], []
+    if date_from is not None:
+        clauses.append("date >= ?")
+        params.append(date_from.isoformat())
+    if date_to is not None:
+        clauses.append("date <= ?")
+        params.append(date_to.isoformat())
+    if not clauses:
+        return "", []
+    return " AND " + " AND ".join(clauses), params
+
 
 def _get_user(conn, user_id):
     row = conn.execute(
@@ -183,27 +364,33 @@ def _get_user(conn, user_id):
     }
 
 
-def _get_stats(conn, user_id):
+def _get_stats(conn, user_id, *, date_from=None, date_to=None):
+    extra, extra_params = _date_where(date_from, date_to)
+
     total_spent = conn.execute(
-        "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE user_id = ?",
-        (user_id,),
+        "SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE user_id = ?"
+        + extra,
+        (user_id, *extra_params),
     ).fetchone()[0]
 
     txn_count = conn.execute(
-        "SELECT COUNT(*) FROM expenses WHERE user_id = ?",
-        (user_id,),
+        "SELECT COUNT(*) FROM expenses WHERE user_id = ?"
+        + extra,
+        (user_id, *extra_params),
     ).fetchone()[0]
 
     top_row = conn.execute(
-        "SELECT category FROM expenses WHERE user_id = ? "
-        "GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
-        (user_id,),
+        "SELECT category FROM expenses WHERE user_id = ?"
+        + extra
+        + " GROUP BY category ORDER BY SUM(amount) DESC LIMIT 1",
+        (user_id, *extra_params),
     ).fetchone()
     top_category = top_row["category"] if top_row is not None else "—"
 
     month_count = conn.execute(
-        "SELECT COUNT(DISTINCT substr(date, 1, 7)) FROM expenses WHERE user_id = ?",
-        (user_id,),
+        "SELECT COUNT(DISTINCT substr(date, 1, 7)) FROM expenses WHERE user_id = ?"
+        + extra,
+        (user_id, *extra_params),
     ).fetchone()[0]
     avg_monthly = round(total_spent / month_count, 2) if month_count else 0.0
 
@@ -215,21 +402,26 @@ def _get_stats(conn, user_id):
     }
 
 
-def _get_recent_transactions(conn, user_id, limit=8):
+def _get_recent_transactions(conn, user_id, *, limit=8, date_from=None, date_to=None):
+    extra, extra_params = _date_where(date_from, date_to)
     rows = conn.execute(
         "SELECT date, description, category, amount FROM expenses "
-        "WHERE user_id = ? ORDER BY date DESC, id DESC LIMIT ?",
-        (user_id, limit),
+        "WHERE user_id = ?"
+        + extra
+        + " ORDER BY date DESC, id DESC LIMIT ?",
+        (user_id, *extra_params, limit),
     ).fetchall()
     return [dict(r) for r in rows]
 
 
-def _get_category_breakdown(conn, user_id):
+def _get_category_breakdown(conn, user_id, *, date_from=None, date_to=None):
+    extra, extra_params = _date_where(date_from, date_to)
     rows = conn.execute(
         "SELECT category AS name, SUM(amount) AS total "
-        "FROM expenses WHERE user_id = ? "
-        "GROUP BY category ORDER BY total DESC",
-        (user_id,),
+        "FROM expenses WHERE user_id = ?"
+        + extra
+        + " GROUP BY category ORDER BY total DESC",
+        (user_id, *extra_params),
     ).fetchall()
     breakdown = [dict(row) for row in rows]
     category_max = max((c["total"] for c in breakdown), default=0)

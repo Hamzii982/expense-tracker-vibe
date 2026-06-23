@@ -23,6 +23,46 @@
         </div>
     </div>
 
+    {# ---- Date filter bar ---- #}
+    <form class="profile-filter" method="get" action="{{ url_for('profile') }}">
+        <div class="profile-filter-presets" role="group" aria-label="Date range presets">
+            {% set presets = [
+                ("all",          "All time"),
+                ("this_month",   "This month"),
+                ("last_month",   "Last month"),
+                ("last_3_months","Last 3 months"),
+                ("last_6_months","Last 6 months"),
+                ("this_year",    "This year"),
+            ] %}
+            {% for key, label in presets %}
+                {% if key == "all" %}
+                    {# "All time" is the canonical reset — link to /profile with no query string. #}
+                    <a class="{{ 'btn-primary' if active_period == key else 'btn-ghost' }}"
+                       href="{{ url_for('profile') }}"
+                       {% if active_period == key %}aria-current="page"{% endif %}>{{ label }}</a>
+                {% else %}
+                    <button type="submit" name="period" value="{{ key }}"
+                            class="{{ 'btn-primary' if active_period == key else 'btn-ghost' }}"
+                            aria-pressed="{{ 'true' if active_period == key else 'false' }}">{{ label }}</button>
+                {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="profile-filter-custom">
+            <label class="profile-filter-field">
+                <span>From</span>
+                <input type="date" name="from" value="{{ filter_from or '' }}">
+            </label>
+            <label class="profile-filter-field">
+                <span>To</span>
+                <input type="date" name="to" value="{{ filter_to or '' }}">
+            </label>
+            <button type="submit" class="btn-primary">Apply</button>
+        </div>
+    </form>
+
+    <p class="profile-filter-summary">Showing: {{ filter_label }}</p>
+
     {# ---- Summary stats row ---- #}
     <div class="profile-stats">
         <div class="profile-stat">
