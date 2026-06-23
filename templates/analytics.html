@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics — Spendly{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="analytics-section">
+
+    <span class="analytics-eyebrow">Analytics</span>
+
+    <h1 class="analytics-title">
+        Deeper insights,<br>
+        <em>coming soon.</em>
+    </h1>
+
+    <p class="analytics-subtitle">
+        We're building a new analytics view that goes beyond the dashboard —
+        longer-range trends, smarter comparisons, and a clearer picture of how
+        your spending shifts over time.
+    </p>
+
+    <div class="analytics-preview">
+        <div class="analytics-preview-item">
+            <div class="analytics-preview-icon" aria-hidden="true">◐</div>
+            <div>
+                <p class="analytics-preview-title">Month-over-month trends</p>
+                <p class="analytics-preview-body">See how this month stacks up against the last, with category-level drift called out.</p>
+            </div>
+        </div>
+        <div class="analytics-preview-item">
+            <div class="analytics-preview-icon" aria-hidden="true">◑</div>
+            <div>
+                <p class="analytics-preview-title">Spending pace</p>
+                <p class="analytics-preview-body">A glance at whether you're on track for the month — and where the curve is bending.</p>
+            </div>
+        </div>
+        <div class="analytics-preview-item">
+            <div class="analytics-preview-icon" aria-hidden="true">◒</div>
+            <div>
+                <p class="analytics-preview-title">Category deep-dives</p>
+                <p class="analytics-preview-body">Drill into a single category to see its history, peaks, and what's driving the change.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="analytics-actions">
+        <a href="{{ url_for('profile') }}" class="btn-primary">Back to dashboard</a>
+        <a href="{{ url_for('landing') }}" class="btn-ghost">Learn about Spendly</a>
+    </div>
+
+</section>
+{% endblock %}
