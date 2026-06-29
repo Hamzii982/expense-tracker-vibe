@@ -3,7 +3,7 @@ import os
 import sqlite3
 from datetime import datetime, date, timedelta
 
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, abort
 
 from database.db import get_db, init_db, seed_db
 
@@ -433,7 +433,7 @@ def _get_stats(conn, user_id, *, date_from=None, date_to=None):
 def _get_recent_transactions(conn, user_id, *, limit=8, date_from=None, date_to=None):
     extra, extra_params = _date_where(date_from, date_to)
     rows = conn.execute(
-        "SELECT date, description, category, amount FROM expenses "
+        "SELECT id, date, description, category, amount FROM expenses "
         "WHERE user_id = ?"
         + extra
         + " ORDER BY date DESC, id DESC LIMIT ?",
@@ -552,9 +552,141 @@ def add_expense():
     return render_template("add_expense.html", **context)
 
 
-@app.route("/expenses/<int:id>/edit")
+@app.route("/expenses/<int:id>/edit", methods=["GET", "POST"])
 def edit_expense(id):
-    return "Edit expense — coming in Step 8"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    # Default context — first render, GET with no submission, no error.
+    context = {
+        "today": date.today().isoformat(),
+        "categories": EXPENSE_CATEGORIES,
+        "form": {
+            "amount": "",
+            "category": "",
+            "date": date.today().isoformat(),
+            "description": "",
+        },
+        "error": "",
+        "expense_id": id,
+    }
+
+    conn = get_db()
+    # Ownership-checked load: same single query on both verbs. If the row
+    # is missing OR belongs to a different user, 404 — never leak data
+    # and never let the form act on someone else's row.
+    row = conn.execute(
+        "SELECT id, amount, category, date, description "
+        "FROM expenses WHERE id = ? AND user_id = ?",
+        (id, session["user_id"]),
+    ).fetchone()
+    if row is None:
+        conn.close()
+        abort(404)
+
+    if request.method == "GET":
+        context["form"] = {
+            "amount": str(row["amount"]),
+            "category": row["category"],
+            "date": row["date"],
+            # Convert NULL description to "" so the input renders empty
+            # rather than the literal string "None".
+            "description": "" if row["description"] is None else row["description"],
+        }
+        conn.close()
+        return render_template("edit_expense.html", **context)
+
+    # POST — re-run the same Step-7 validation sequence in the same
+    # order, with the same error messages and the same 400 status.
+    amount_raw = (request.form.get("amount") or "").strip()
+    category = (request.form.get("category") or "").strip()
+    date_raw = (request.form.get("date") or "").strip()
+    description = (request.form.get("description") or "").strip()
+
+    # Echo submitted values back into the form on any failure.
+    context["form"] = {
+        "amount": amount_raw,
+        "category": category,
+        "date": date_raw,
+        "description": description,
+    }
+
+    # 1. Amount — parseable, finite, positive, under the sanity cap.
+    amount_value = None
+    try:
+        amount_value = float(amount_raw)
+    except (TypeError, ValueError):
+        context["error"] = "amount must be a number"
+        conn.close()
+        return render_template("edit_expense.html", **context), 400
+    # nan and inf parse as floats but are not valid expense amounts.
+    if not math.isfinite(amount_value):
+        context["error"] = "amount must be a number"
+        conn.close()
+        return render_template("edit_expense.html", **context), 400
+    if amount_value <= 0:
+        context["error"] = "amount must be greater than 0"
+        conn.close()
+        return render_template("edit_expense.html", **context), 400
+    if amount_value > 1_000_000:
+        context["error"] = "amount must be 1,000,000 or less"
+        conn.close()
+        return render_template("edit_expense.html", **context), 400
+
+    # 2. Category — must be in the whitelist.
+    if category not in EXPENSE_CATEGORIES:
+        context["error"] = "please pick a category"
+        conn.close()
+        return render_template("edit_expense.html", **context), 400
+
+    # 3. Date — ISO YYYY-MM-DD, not in the future.
+    if not date_raw:
+        context["error"] = "please pick a date"
+        conn.close()
+        return render_template("edit_expense.html", **context), 400
+    try:
+        parsed_date = date.fromisoformat(date_raw)
+    except (TypeError, ValueError):
+        context["error"] = "please enter a valid date"
+        conn.close()
+        return render_template("edit_expense.html", **context), 400
+    if parsed_date > date.today():
+        context["error"] = "date can't be in the future"
+        conn.close()
+        return render_template("edit_expense.html", **context), 400
+
+    # 4. Description — optional, stripped, max 200 chars.
+    if len(description) > 200:
+        context["error"] = "description must be 200 characters or less"
+        conn.close()
+        return render_template("edit_expense.html", **context), 400
+    description_value = description or None
+
+    # 5. Update. `id` from URL, `user_id` from session — never the form.
+    # The trailing `AND user_id = ?` is a belt-and-braces ownership check:
+    # even if a future bug lets a wrong row load, the UPDATE itself cannot
+    # touch another user's expense.
+    cursor = conn.execute(
+        "UPDATE expenses SET amount = ?, category = ?, date = ?, description = ? "
+        "WHERE id = ? AND user_id = ?",
+        (
+            amount_value,
+            category,
+            parsed_date.isoformat(),
+            description_value,
+            id,
+            session["user_id"],
+        ),
+    )
+    conn.commit()
+    # rowcount == 0 means the row was deleted between the load and the
+    # save (concurrent delete). 404 is the right response.
+    if cursor.rowcount == 0:
+        conn.close()
+        abort(404)
+    conn.close()
+
+    return redirect(url_for("profile"))
 
 
 @app.route("/expenses/<int:id>/delete")
