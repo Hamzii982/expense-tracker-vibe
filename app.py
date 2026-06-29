@@ -1,3 +1,4 @@
+import math
 import os
 import sqlite3
 from datetime import datetime, date, timedelta
@@ -16,6 +17,26 @@ app.secret_key = os.environ.get("SECRET_KEY") or "dev-only-change-me"
 with app.app_context():
     init_db()
     seed_db()
+
+
+# ------------------------------------------------------------------ #
+# Constants                                                           #
+# ------------------------------------------------------------------ #
+
+# Whitelisted expense categories — shared by the add_expense view, the
+# add_expense template, and any future edit form. Order is the order
+# the template renders them in. Matches the categories used by the
+# seeded data so freshly added rows colour correctly in the category
+# breakdown on /profile.
+EXPENSE_CATEGORIES = (
+    "Food",
+    "Transport",
+    "Bills",
+    "Health",
+    "Entertainment",
+    "Shopping",
+    "Other",
+)
 
 
 # ------------------------------------------------------------------ #
@@ -435,9 +456,100 @@ def _get_category_breakdown(conn, user_id, *, date_from=None, date_to=None):
     return breakdown, category_max
 
 
-@app.route("/expenses/add")
+@app.route("/expenses/add", methods=["GET", "POST"])
 def add_expense():
-    return "Add expense — coming in Step 7"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    # Default context — first render, no submission, no error.
+    context = {
+        "today": date.today().isoformat(),
+        "categories": EXPENSE_CATEGORIES,
+        "form": {
+            "amount": "",
+            "category": "",
+            "date": date.today().isoformat(),
+            "description": "",
+        },
+        "error": "",
+    }
+
+    if request.method == "POST":
+        # 1. Read & strip.
+        amount_raw = (request.form.get("amount") or "").strip()
+        category = (request.form.get("category") or "").strip()
+        date_raw = (request.form.get("date") or "").strip()
+        description = (request.form.get("description") or "").strip()
+
+        # Echo submitted values back into the form on any failure.
+        context["form"] = {
+            "amount": amount_raw,
+            "category": category,
+            "date": date_raw,
+            "description": description,
+        }
+
+        # 2. Validate amount — parseable, positive, under the sanity cap.
+        amount_value = None
+        try:
+            amount_value = float(amount_raw)
+        except (TypeError, ValueError):
+            context["error"] = "amount must be a number"
+            return render_template("add_expense.html", **context), 400
+        # nan and inf parse as floats but are not valid expense amounts.
+        if not math.isfinite(amount_value):
+            context["error"] = "amount must be a number"
+            return render_template("add_expense.html", **context), 400
+        if amount_value <= 0:
+            context["error"] = "amount must be greater than 0"
+            return render_template("add_expense.html", **context), 400
+        if amount_value > 1_000_000:
+            context["error"] = "amount must be 1,000,000 or less"
+            return render_template("add_expense.html", **context), 400
+
+        # 3. Validate category — must be in the whitelist.
+        if category not in EXPENSE_CATEGORIES:
+            context["error"] = "please pick a category"
+            return render_template("add_expense.html", **context), 400
+
+        # 4. Validate date — ISO YYYY-MM-DD, not in the future.
+        if not date_raw:
+            context["error"] = "please pick a date"
+            return render_template("add_expense.html", **context), 400
+        try:
+            parsed_date = date.fromisoformat(date_raw)
+        except (TypeError, ValueError):
+            context["error"] = "please enter a valid date"
+            return render_template("add_expense.html", **context), 400
+        if parsed_date > date.today():
+            context["error"] = "date can't be in the future"
+            return render_template("add_expense.html", **context), 400
+
+        # 5. Validate description — optional, stripped, max 200 chars.
+        if len(description) > 200:
+            context["error"] = "description must be 200 characters or less"
+            return render_template("add_expense.html", **context), 400
+        description_value = description or None
+
+        # 6. Insert. user_id is bound from session, never from the form.
+        conn = get_db()
+        conn.execute(
+            "INSERT INTO expenses(user_id, amount, category, date, description) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (
+                session["user_id"],
+                amount_value,
+                category,
+                parsed_date.isoformat(),
+                description_value,
+            ),
+        )
+        conn.commit()
+        conn.close()
+
+        return redirect(url_for("profile"))
+
+    return render_template("add_expense.html", **context)
 
 
 @app.route("/expenses/<int:id>/edit")
