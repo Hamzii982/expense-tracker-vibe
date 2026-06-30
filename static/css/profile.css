@@ -279,6 +279,29 @@
     background: var(--accent-light);
 }
 
+/* Delete link in the row actions column — mirrors .profile-tx-edit's
+   chip styling but uses the existing --danger / --danger-light tokens.
+   No new hex values. */
+.profile-tx-delete {
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--danger);
+    padding: 0.25rem 0.55rem;
+    border-radius: var(--radius-sm, 6px);
+    border: 1px solid var(--border);
+    margin-left: 0.4rem;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.profile-tx-delete:hover {
+    color: var(--danger);
+    border-color: var(--danger);
+    background: var(--danger-light);
+}
+
+.col-actions a + a { margin-left: 0.4rem; }
+
 .visually-hidden {
     position: absolute;
     width: 1px;

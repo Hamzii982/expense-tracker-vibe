@@ -1,0 +1,127 @@
+/* ------------------------------------------------------------------ */
+/* Delete expense page                                                 */
+/*                                                                    */
+/* Per-page override loaded after style.css. References only existing */
+/* :root tokens — no new hex values.                                  */
+/* ------------------------------------------------------------------ */
+
+.delete-expense-section {
+    min-height: calc(100vh - 60px - 100px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 2rem;
+}
+
+.delete-expense-container {
+    width: 100%;
+    max-width: 560px;
+}
+
+.delete-expense-header {
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.delete-expense-back {
+    display: block;
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--ink-muted);
+    margin-top: 1.25rem;
+    transition: color 0.2s;
+}
+
+.delete-expense-back:hover { color: var(--accent); }
+
+.delete-expense-title {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    color: var(--ink);
+    margin-bottom: 0.4rem;
+}
+
+.delete-expense-subtitle {
+    font-size: 0.95rem;
+    color: var(--ink-muted);
+}
+
+.delete-expense-card {
+    background: var(--paper-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 2rem;
+}
+
+/* Read-only key/value detail rows.
+   Two-column grid: small-caps label on the left, value on the right.
+   Subtle divider between rows for scanability. */
+.delete-expense-details {
+    margin-bottom: 1.75rem;
+    border: 1px solid var(--border-soft);
+    border-radius: var(--radius-sm);
+    background: var(--paper-warm);
+}
+
+.delete-expense-detail-row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--border-soft);
+}
+
+.delete-expense-details .delete-expense-detail-row:last-child {
+    border-bottom: none;
+}
+
+.delete-expense-detail-row dt {
+    color: var(--ink-muted);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+    align-self: center;
+}
+
+.delete-expense-detail-row dd {
+    color: var(--ink);
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* Confirm + cancel row, side-by-side, gap between them. */
+.delete-expense-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.delete-expense-actions .btn-ghost {
+    flex: 1;
+    text-align: center;
+}
+
+/* Destructive submit. --danger and --paper exist as :root tokens.
+   No new hex; hover uses filter (no new hex). */
+.delete-expense-confirm {
+    flex: 1;
+    padding: 0.7rem 1rem;
+    background: var(--danger);
+    color: var(--paper);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: filter 0.2s;
+}
+
+.delete-expense-confirm:hover { filter: brightness(0.92); }
+
+@media (max-width: 600px) {
+    .delete-expense-section { padding: 2rem 1rem; }
+    .delete-expense-card { padding: 1.5rem; }
+    .delete-expense-detail-row { grid-template-columns: 1fr; gap: 0.25rem; }
+}

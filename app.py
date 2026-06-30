@@ -689,9 +689,59 @@ def edit_expense(id):
     return redirect(url_for("profile"))
 
 
-@app.route("/expenses/<int:id>/delete")
+@app.route("/expenses/<int:id>/delete", methods=["GET", "POST"])
 def delete_expense(id):
-    return "Delete expense — coming in Step 9"
+    if not session.get("user_id"):
+        return redirect(url_for("login"))
+
+    conn = get_db()
+    # Ownership-checked load: same single query on both verbs. If the row
+    # is missing OR belongs to a different user, 404 — never leak data
+    # and never let the delete act on someone else's row.
+    row = conn.execute(
+        "SELECT id, amount, category, date, description "
+        "FROM expenses WHERE id = ? AND user_id = ?",
+        (id, session["user_id"]),
+    ).fetchone()
+    if row is None:
+        conn.close()
+        abort(404)
+
+    if request.method == "GET":
+        # Pre-format the date in the view rather than Jinja — keeps the
+        # template simple and matches the existing _short() helper used by
+        # the /profile filter label. Reuse the helper to avoid relying on
+        # platform-specific strftime codes (no leading zero on the day).
+        parsed_date = date.fromisoformat(row["date"])
+        context = {
+            "expense_id": id,
+            "expense": {
+                "amount": row["amount"],
+                "category": row["category"],
+                "date": row["date"],
+                "date_display": _short(parsed_date, with_year=True),
+                # Convert NULL description to "" so the template can
+                # render an em-dash instead of the literal string "None".
+                "description": "" if row["description"] is None else row["description"],
+            },
+        }
+        conn.close()
+        return render_template("delete_expense.html", **context)
+
+    # POST — ownership-checked DELETE. Trailing AND user_id = ? is a
+    # belt-and-braces guard: even if a future bug lets a wrong row load,
+    # this statement cannot touch another user's expense. rowcount == 0
+    # means the row was already deleted between the load and the delete.
+    cursor = conn.execute(
+        "DELETE FROM expenses WHERE id = ? AND user_id = ?",
+        (id, session["user_id"]),
+    )
+    conn.commit()
+    if cursor.rowcount == 0:
+        conn.close()
+        abort(404)
+    conn.close()
+    return redirect(url_for("profile"))
 
 
 if __name__ == "__main__":
